@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Secrets — ne JAMAIS committer
+.env
+.env.local
+*.env
+
+# Données générées (jobs, résultats, vidéos téléchargées, sous-titres)
+backend/storage/
+
+# Node / Next.js (arrive en Phase 3)
+node_modules/
+.next/
+out/
+frontend/.env*
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

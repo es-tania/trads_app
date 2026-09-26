@@ -1,0 +1,17 @@
+# Phase 1 : seul FlareSolverr est conteneurisé.
+# Le backend FastAPI tourne en local (venv) pour l'instant, pour garder un
+# accès simple et natif au GPU (Whisper). On le conteneurisera en Phase 2
+# une fois la file d'attente (Redis + RQ) en place.
+
+services:
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    ports:
+      - "8191:8191"
+    restart: unless-stopped
+
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   restart: unless-stopped
