@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     # Dossier contenant tes scripts existants du module 03 (Transcript YTB),
     # réutilisés tels quels via subprocess pour l'instant (Phase 1).
-    subtitles_scripts_dir: Path = Path("../03_Transcript_YTB")
+    subtitles_scripts_dir: Path = Path("legacy_scripts/subtitles")
 
     # DeepL officiel (palier gratuit : 500 000 caractères/mois)
     deepl_api_key: str = ""

@@ -23,6 +23,8 @@ l'instant) — c'est l'objectif de la Phase 2.
   depuis un lien YouTube ; tes scripts `1_align.py`, `1_fr_txt_to_segments.py`,
   `2_merge_to_srt.py`, `4_fix_srt_timings.py` sont réutilisés tels quels via
   subprocess (pas réécrits, pour ne pas risquer de casser la logique Whisper).
+  Ils vivent maintenant dans `legacy_scripts/subtitles/` (à l'intérieur de
+  `backend/`) — plus de dossier externe à maintenir à côté du repo.
 
 ## Installation
 
