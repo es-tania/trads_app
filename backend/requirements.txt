@@ -7,6 +7,8 @@ beautifulsoup4>=4.12
 requests>=2.32
 deepl>=1.18
 yt-dlp>=2024.8.6
+redis>=5.0
+rq>=1.16
 
 # Nécessaires pour le module sous-titres (03), inchangé pour l'instant :
 stable-ts>=2.17

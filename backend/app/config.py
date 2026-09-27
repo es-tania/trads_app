@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # FlareSolverr (contournement Cloudflare), tourne dans un conteneur Docker
     flaresolverr_url: str = "http://localhost:8191/v1"
 
+    # Redis (file d'attente RQ + pub/sub pour les logs en direct)
+    redis_url: str = "redis://localhost:6379/0"
+
     # Origines autorisées pour le frontend Next.js
     cors_origins: list[str] = ["http://localhost:3000"]
 

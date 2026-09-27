@@ -11,9 +11,13 @@ et l'état d'avancement des phases.
 ## Structure
 
 ```
-backend/    API FastAPI (voir backend/README.md pour l'installation)
-frontend/   Interface Next.js (Phase 3, pas encore commencée)
-docs/       Documentation d'architecture et roadmap
+backend/
+├── app/                 code de l'API (routes, services)
+├── legacy_scripts/      scripts d'origine réutilisés tels quels (module 03),
+│                        seront progressivement portés en Phase 2
+└── README.md            installation détaillée
+frontend/                Interface Next.js (Phase 3, pas encore commencée)
+docs/                    Documentation d'architecture et roadmap
 ```
 
 ## Statut

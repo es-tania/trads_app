@@ -32,7 +32,8 @@ flowchart TD
 
 - [x] Phase 1 — Backend FastAPI unifié (scraping, traduction DeepL,
       orchestration sous-titres), sans n8n ni Node.js
-- [ ] Phase 2 — File d'attente Redis/RQ + logs en direct par WebSocket
+- [x] Phase 2 — File d'attente Redis/RQ + logs en direct par WebSocket
+      (jobs asynchrones pour scraping, traduction et sous-titres)
 - [ ] Phase 3 — Frontend Next.js + Tailwind/shadcn
 - [ ] Phase 4 — Cloudflare Tunnel + authentification
 - [ ] Phase 5 — Choix et branchement du modèle de vision (OCR)

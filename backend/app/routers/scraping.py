@@ -1,29 +1,27 @@
 """
 Remplace le module 00 (n8n) : scraper une page de script, générer le docx EN,
 traduire, générer le docx FR. Tout dans l'API, sans n8n.
+
+Le scraping (dépend de FlareSolverr, peut être lent sur Cloudflare) et la
+traduction (appel réseau à DeepL) passent par la file d'attente RQ — suivre
+l'avancement via GET /jobs/{job_id} ou WS /jobs/{job_id}/ws. La génération
+du docx reste synchrone : c'est purement local et quasi instantané.
 """
 import json
-from datetime import datetime
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.config import settings
-from app.services.deepl_translate import translate_text
-from app.services.scraper_script import scrape_script
+from app.jobs.queue import queue
+from app.jobs.tasks import task_scrape, task_translate_scraped
 from app.services.script_docx_generator import generate_docx
 
 router = APIRouter(prefix="/scraping", tags=["scraping"])
 
 SCRIPTS_DIR = settings.storage_dir / "scripts"
-
-
-def _safe_folder_name(title: str) -> str:
-    name = title.replace("Script:", "").strip()
-    for ch in [":", "/", " ", "(", ")"]:
-        name = name.replace(ch, "_")
-    return name
 
 
 class ScrapeRequest(BaseModel):
@@ -41,26 +39,12 @@ class TranslateRequest(BaseModel):
     filename: str
 
 
-@router.post("/scrape")
+@router.post("/scrape", status_code=202)
 def scrape(payload: ScrapeRequest):
-    """Récupère un script depuis une URL de wiki (remplace le noeud n8n de scraping)."""
-    try:
-        result = scrape_script(payload.url)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Échec du scraping : {exc}") from exc
-
-    folder = _safe_folder_name(result["title"])
-    script_dir = SCRIPTS_DIR / folder
-    script_dir.mkdir(parents=True, exist_ok=True)
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{folder}_{timestamp}.json"
-    filepath = script_dir / filename
-
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False, indent=2)
-
-    return {"folder": folder, "file": filename, "title": result["title"]}
+    """Met en file d'attente la récupération d'un script (remplace le scraping n8n)."""
+    job_id = uuid.uuid4().hex
+    queue.enqueue(task_scrape, job_id, payload.url, job_timeout="5m")
+    return {"job_id": job_id}
 
 
 @router.post("/generate-docx")
@@ -75,24 +59,13 @@ def generate_docx_route(payload: GenerateDocxRequest):
     return {"folder": payload.folder, "file": output_path.name}
 
 
-@router.post("/translate")
+@router.post("/translate", status_code=202)
 def translate_scraped_script(payload: TranslateRequest):
-    """Traduit le script scrapé via l'API officielle DeepL (remplace l'étape n8n)."""
+    """Met en file d'attente la traduction DeepL du script scrapé."""
     json_path = SCRIPTS_DIR / payload.folder / payload.filename
     if not json_path.exists():
         raise HTTPException(status_code=404, detail=f"Fichier introuvable : {json_path}")
 
-    with open(json_path, "r", encoding="utf-8") as f:
-        original = json.load(f)
-
-    translated_script = translate_text(original["script"], source_lang="EN", target_lang="FR")
-
-    fr_filename = payload.filename.replace(".json", "_FR.json")
-    fr_path = SCRIPTS_DIR / payload.folder / fr_filename
-    with open(fr_path, "w", encoding="utf-8") as f:
-        json.dump(
-            {"title": original["title"], "url": original["url"], "script": translated_script},
-            f, ensure_ascii=False, indent=2,
-        )
-
-    return {"folder": payload.folder, "file": fr_filename}
+    job_id = uuid.uuid4().hex
+    queue.enqueue(task_translate_scraped, job_id, payload.folder, payload.filename, job_timeout="5m")
+    return {"job_id": job_id}

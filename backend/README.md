@@ -1,8 +1,9 @@
-# Backend unifié — Phase 1
+# Backend unifié — Phase 1 + 2
 
 Fusionne les 4 modules derrière une seule API FastAPI, sans n8n et sans
-Node.js. Rien n'est encore mis en file d'attente (jobs synchrones pour
-l'instant) — c'est l'objectif de la Phase 2.
+Node.js (Phase 1), avec les tâches longues (scraping, traduction,
+sous-titres) exécutées en file d'attente Redis/RQ plutôt que de bloquer la
+requête HTTP (Phase 2).
 
 ## Ce qui a changé par rapport aux scripts d'origine
 
@@ -43,34 +44,65 @@ Il te faut aussi `ffmpeg` installé et dans le PATH (nécessaire à Whisper) :
 - macOS : `brew install ffmpeg`
 - Linux : `sudo apt install ffmpeg`
 
-## Lancer FlareSolverr (nécessaire pour le scraping)
+## Lancer les services annexes (FlareSolverr + Redis)
 
 ```bash
-docker compose up -d flaresolverr
+docker compose up -d flaresolverr redis
 ```
 
-## Lancer l'API
+## Lancer l'API (terminal 1)
 
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-Documentation interactive (pour tester chaque route sans frontend) :
-http://localhost:8000/docs
+## Lancer le worker (terminal 2) — nouveau en Phase 2
+
+`/scraping/scrape`, `/scraping/translate`, `/translate/docx` et
+`/subtitles/generate` ne font plus le travail dans la requête HTTP : elles
+mettent un job en file d'attente et répondent tout de suite. Il faut donc un
+**worker** qui tourne en parallèle pour exécuter ces jobs :
+
+```bash
+cd backend
+python run_worker.py
+```
+
+⚠️ Ne pas utiliser la commande `rq worker` standard : elle repose sur
+`os.fork()`, indisponible sur Windows. `run_worker.py` utilise `SimpleWorker`
+à la place, qui fonctionne identiquement sur toutes les plateformes (voir le
+commentaire en tête de ce fichier pour le détail du compromis).
+
+Sans ce worker lancé, les jobs restent bloqués en statut `queued` pour
+toujours.
+
+Documentation interactive de l'API : http://localhost:8000/docs
+
+## Nouveau flux asynchrone (scraping, traduction, sous-titres)
+
+Même principe pour `/scraping/scrape`, `/scraping/translate`,
+`/translate/docx` et `/subtitles/generate` :
+
+1. La route répond immédiatement avec `{"job_id": "..."}` (code 202)
+2. `GET /jobs/{job_id}` → statut courant (`queued` / `running` / `done` / `error`) + historique des logs
+3. `GET /jobs/{job_id}/result` → télécharge le fichier produit une fois `status = done`
+4. WebSocket `/jobs/{job_id}/ws` → journal en direct (équivalent au log de
+   ta GUI Tkinter), se ferme automatiquement à la fin du job
+
+`/scraping/generate-docx` reste synchrone (traitement local, quasi
+instantané, pas besoin de file d'attente).
 
 ## Pourquoi le backend ne tourne pas encore dans Docker
 
-Pour garder un accès natif et simple à ton GPU (Whisper), on lance le
-backend directement sur ta machine (venv) pour l'instant plutôt que dans un
-conteneur — la conteneurisation complète avec accès GPU (nvidia-docker) sera
-traitée en Phase 2, en même temps que la file d'attente Redis/RQ.
+Pour garder un accès natif et simple à ton GPU (Whisper), le backend et le
+worker tournent directement sur ta machine (venv) plutôt que dans un
+conteneur — la conteneurisation complète avec accès GPU (nvidia-docker)
+n'est pas nécessaire pour un usage solo et ajouterait de la complexité pour
+peu de bénéfice ici.
 
-## Prochaines étapes (Phase 2)
+## Prochaines étapes (Phase 3)
 
-1. Ajouter Redis + RQ : chaque route ci-dessus devient un job asynchrone au
-   lieu de bloquer la requête HTTP (important pour `/subtitles/generate`,
-   qui peut prendre plusieurs minutes).
-2. Ajouter une WebSocket par job pour streamer les logs en direct (comme ta
-   GUI Tkinter actuelle).
-3. Brancher l'OCR (`app/routers/ocr.py`) une fois le modèle de vision choisi.
-4. Construire le frontend Next.js qui appelle ces routes.
+1. Brancher l'OCR (`app/routers/ocr.py`) une fois le modèle de vision choisi
+   — sur le même modèle jobs asynchrones que les sous-titres.
+2. Construire le frontend Next.js qui appelle ces routes (formulaires,
+   suivi de statut, logs en direct via la WebSocket).
