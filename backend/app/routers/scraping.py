@@ -12,6 +12,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.config import settings
@@ -57,6 +58,19 @@ def generate_docx_route(payload: GenerateDocxRequest):
     output_path = SCRIPTS_DIR / payload.folder / f"{payload.lang}.docx"
     generate_docx(json_path, output_path)
     return {"folder": payload.folder, "file": output_path.name}
+
+
+@router.get("/download")
+def download_scraped_file(folder: str, filename: str):
+    """Télécharge un fichier du dossier d'un script scrapé (json ou docx)."""
+    if "/" in folder or "\\" in folder or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Nom de fichier ou dossier invalide")
+
+    path = SCRIPTS_DIR / folder / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"Fichier introuvable : {path}")
+
+    return FileResponse(path, filename=filename)
 
 
 @router.post("/translate", status_code=202)

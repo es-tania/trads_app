@@ -34,6 +34,6 @@ flowchart TD
       orchestration sous-titres), sans n8n ni Node.js
 - [x] Phase 2 — File d'attente Redis/RQ + logs en direct par WebSocket
       (jobs asynchrones pour scraping, traduction et sous-titres)
-- [ ] Phase 3 — Frontend Next.js + Tailwind/shadcn
+- [x] Phase 3 — Frontend Next.js + Tailwind (thème sombre "salle de contrôle")
 - [ ] Phase 4 — Cloudflare Tunnel + authentification
 - [ ] Phase 5 — Choix et branchement du modèle de vision (OCR)

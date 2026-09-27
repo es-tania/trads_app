@@ -12,14 +12,13 @@ et l'état d'avancement des phases.
 
 ```
 backend/
-├── app/                 code de l'API (routes, services)
-├── legacy_scripts/      scripts d'origine réutilisés tels quels (module 03),
-│                        seront progressivement portés en Phase 2
+├── app/                 code de l'API (routes, services, jobs RQ)
+├── legacy_scripts/      scripts d'origine réutilisés tels quels (module 03)
 └── README.md            installation détaillée
-frontend/                Interface Next.js (Phase 3, pas encore commencée)
+frontend/                Interface Next.js (voir frontend/README.md)
 docs/                    Documentation d'architecture et roadmap
 ```
 
 ## Statut
 
-🚧 Phase 1 en cours — voir la checklist dans `docs/ARCHITECTURE.md`.
+🚧 Phase 3 en cours — voir la checklist dans `docs/ARCHITECTURE.md`.

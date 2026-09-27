@@ -8,7 +8,7 @@ Suivre l'avancement via GET /jobs/{job_id} ou en direct via WS /jobs/{job_id}/ws
 import shutil
 import uuid
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, Form, HTTPException, UploadFile
 
 from app.config import settings
 from app.jobs.logging import JobLogger
@@ -24,10 +24,10 @@ JOBS_DIR = settings.storage_dir / "subtitles_jobs"
 async def generate_subtitles(
     en_docx: UploadFile,
     fr_docx: UploadFile,
-    youtube_url: str | None = None,
+    youtube_url: str | None = Form(None),
     video: UploadFile | None = None,
-    whisper_model: str = "medium",
-    min_duration: float = 1.2,
+    whisper_model: str = Form("medium"),
+    min_duration: float = Form(1.2),
 ):
     if not youtube_url and not video:
         raise HTTPException(status_code=400, detail="Fournis soit youtube_url, soit un fichier vidéo")

@@ -1,0 +1,97 @@
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const WS_BASE = API_BASE.replace(/^http/, "ws");
+
+export interface JobEnqueued {
+  job_id: string;
+}
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText);
+  return res.json();
+}
+
+async function postForm<T>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { method: "POST", body: form });
+  if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText);
+  return res.json();
+}
+
+// --- Scraping (module 00) ---
+
+export function scrapeUrl(url: string) {
+  return postJson<JobEnqueued>("/scraping/scrape", { url });
+}
+
+export function translateScrapedScript(folder: string, filename: string) {
+  return postJson<JobEnqueued>("/scraping/translate", { folder, filename });
+}
+
+export async function generateScrapedDocx(folder: string, filename: string, lang: "EN" | "FR") {
+  const res = await fetch(`${API_BASE}/scraping/generate-docx`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ folder, filename, lang }),
+  });
+  if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText);
+  return res.json() as Promise<{ folder: string; file: string }>;
+}
+
+export function scrapingDownloadUrl(folder: string, filename: string) {
+  return `${API_BASE}/scraping/download?folder=${encodeURIComponent(folder)}&filename=${encodeURIComponent(filename)}`;
+}
+
+// --- Traduction docx (module 02) ---
+
+export function translateDocx(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return postForm<JobEnqueued>("/translate/docx", form);
+}
+
+// --- Sous-titres (module 03) ---
+
+export interface SubtitlesParams {
+  enDocx: File;
+  frDocx: File;
+  youtubeUrl?: string;
+  video?: File;
+  whisperModel: string;
+  minDuration: number;
+}
+
+export function generateSubtitles(params: SubtitlesParams) {
+  const form = new FormData();
+  form.append("en_docx", params.enDocx);
+  form.append("fr_docx", params.frDocx);
+  if (params.youtubeUrl) form.append("youtube_url", params.youtubeUrl);
+  if (params.video) form.append("video", params.video);
+  form.append("whisper_model", params.whisperModel);
+  form.append("min_duration", String(params.minDuration));
+  return postForm<JobEnqueued>("/subtitles/generate", form);
+}
+
+// --- Jobs (générique) ---
+
+export interface JobState {
+  job_id: string;
+  status: "queued" | "running" | "done" | "error";
+  logs: string[];
+  result_filename?: string;
+  message?: string;
+  [key: string]: unknown;
+}
+
+export async function getJobStatus(jobId: string): Promise<JobState> {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}`);
+  if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText);
+  return res.json();
+}
+
+export function jobResultUrl(jobId: string) {
+  return `${API_BASE}/jobs/${jobId}/result`;
+}

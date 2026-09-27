@@ -64,7 +64,6 @@ mettent un job en file d'attente et répondent tout de suite. Il faut donc un
 **worker** qui tourne en parallèle pour exécuter ces jobs :
 
 ```bash
-cd backend
 python run_worker.py
 ```
 
