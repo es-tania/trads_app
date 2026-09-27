@@ -29,6 +29,19 @@ class Settings(BaseSettings):
     # DeepL officiel (palier gratuit : 500 000 caractères/mois)
     deepl_api_key: str = ""
 
+    # Moteur de traduction par défaut, utilisé quand une route ne précise
+    # pas explicitement `engine` : "deepl" (API officielle) ou "deeplx"
+    # (CLI Node.js `deeplx` en local, gratuit, sans clé — voir services/deeplx_translate.py)
+    translate_engine: str = "deepl"
+
+    # Commande pour lancer Node.js (utilisé pour le CLI deeplx). Change-la si
+    # `node` n'est pas dans ton PATH.
+    node_bin: str = "node"
+
+    # Dossier contenant le projet npm du CLI deeplx (package.json + node_modules
+    # après un `npm install`). Chemin relatif au dossier backend/.
+    deeplx_cli_dir: Path = Path("deeplx-cli")
+
     # FlareSolverr (contournement Cloudflare), tourne dans un conteneur Docker
     flaresolverr_url: str = "http://localhost:8191/v1"
 
@@ -38,7 +51,7 @@ class Settings(BaseSettings):
     # Origines autorisées pour le frontend Next.js
     cors_origins: list[str] = ["http://localhost:3000"]
 
-    @field_validator("storage_dir", "subtitles_scripts_dir")
+    @field_validator("storage_dir", "subtitles_scripts_dir", "deeplx_cli_dir")
     @classmethod
     def _resolve_absolute(cls, v: Path) -> Path:
         """

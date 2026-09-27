@@ -5,6 +5,10 @@ export interface JobEnqueued {
   job_id: string;
 }
 
+// "deepl" : API officielle (clé requise, palier gratuit 500k caractères/mois).
+// "deeplx" : serveur DeepLX auto-hébergé en local (gratuit, sans clé).
+export type TranslateEngine = "deepl" | "deeplx";
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
@@ -27,8 +31,8 @@ export function scrapeUrl(url: string) {
   return postJson<JobEnqueued>("/scraping/scrape", { url });
 }
 
-export function translateScrapedScript(folder: string, filename: string) {
-  return postJson<JobEnqueued>("/scraping/translate", { folder, filename });
+export function translateScrapedScript(folder: string, filename: string, engine?: TranslateEngine) {
+  return postJson<JobEnqueued>("/scraping/translate", { folder, filename, engine });
 }
 
 export async function generateScrapedDocx(folder: string, filename: string, lang: "EN" | "FR") {
@@ -47,9 +51,10 @@ export function scrapingDownloadUrl(folder: string, filename: string) {
 
 // --- Traduction docx (module 02) ---
 
-export function translateDocx(file: File) {
+export function translateDocx(file: File, engine?: TranslateEngine) {
   const form = new FormData();
   form.append("file", file);
+  if (engine) form.append("engine", engine);
   return postForm<JobEnqueued>("/translate/docx", form);
 }
 

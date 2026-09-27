@@ -16,19 +16,7 @@ import re
 import deepl
 
 from app.config import settings
-
-PROTECTED_WORDS = [
-    # Noms de personnages
-    "Rafayel", "Sylus", "Zayne", "Xavier", "Caleb",
-    "Jeremiah", "Isaiah", "Soren", "Valko", "Gideon", "Aemma", "Iann",
-    # Termes techniques
-    "Wanderer", "Wanderers", "Hunter", "Aether Core", "Protofield",
-    "Protocore", "Deepspace Tunnel", "Evolver", "Evol",
-    "Deepspace Academy", "Chronorift", "Protocurve",
-    "Metaflux", "Backtrackers", "EVER", "UNICORNS", "hunter", "hunters",
-    "Deepspace Hunter", "Deepspace Hunters", "Deepspace",
-    "KINDLED", "Memoria", "Linkon", "Lemuria",
-]
+from app.services.protected_words import PROTECTED_WORDS, protect_with_tags
 
 _translator: deepl.Translator | None = None
 
@@ -45,16 +33,10 @@ def _get_translator() -> deepl.Translator:
     return _translator
 
 
-def _protect(text: str) -> str:
-    for word in sorted(PROTECTED_WORDS, key=len, reverse=True):
-        text = re.sub(rf"\b{re.escape(word)}\b", f"<keep>{word}</keep>", text)
-    return text
-
-
 def translate_text(text: str, source_lang: str = "EN", target_lang: str = "FR") -> str:
     """Traduit un texte en protégeant les noms propres et termes techniques."""
     translator = _get_translator()
-    protected = _protect(text)
+    protected = protect_with_tags(text)
 
     result = translator.translate_text(
         protected,

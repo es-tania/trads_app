@@ -7,11 +7,14 @@ import {
   scrapingDownloadUrl,
   translateScrapedScript,
   JobState,
+  TranslateEngine,
 } from "@/lib/api";
 import { JobStatusPanel } from "@/components/JobStatusPanel";
+import { EngineSelector } from "@/components/EngineSelector";
 
 export default function ScrapingPage() {
   const [url, setUrl] = useState("");
+  const [engine, setEngine] = useState<TranslateEngine>("deepl");
   const [scrapeJobId, setScrapeJobId] = useState<string | null>(null);
   const [translateJobId, setTranslateJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +35,7 @@ export default function ScrapingPage() {
   async function handleTranslate(folder: string, filename: string) {
     setError(null);
     try {
-      const { job_id } = await translateScrapedScript(folder, filename);
+      const { job_id } = await translateScrapedScript(folder, filename, engine);
       setTranslateJobId(job_id);
     } catch (err) {
       setError((err as Error).message);

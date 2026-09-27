@@ -7,9 +7,15 @@ requête HTTP (Phase 2).
 
 ## Ce qui a changé par rapport aux scripts d'origine
 
-- **Traduction** : `deeplx` (Node.js, non officiel) → API DeepL officielle
-  (`deepl` SDK Python, palier gratuit 500 000 caractères/mois). Utilisée à la
-  fois par `/scraping/translate` et `/translate/docx`.
+- **Traduction** : deux moteurs au choix (paramètre `engine`, ou
+  `TRANSLATE_ENGINE` dans `.env`) :
+  - `deepl` : API DeepL officielle (`deepl` SDK Python, palier gratuit
+    500 000 caractères/mois, clé requise).
+  - `deeplx` : CLI Node.js `deeplx` (gratuit, sans clé) — le même outil que
+    l'ancien module 02, mais appelé proprement depuis Python (plus de
+    fichiers temporaires ni de `shell=True`). Nécessite `npm install` dans
+    `deeplx-cli/` une fois (voir ci-dessous).
+  Utilisée à la fois par `/scraping/translate` et `/translate/docx`.
 - **Génération du docx du script scrapé** : le script Node.js
   `generate_script_docx.js` a été porté en Python pur
   (`app/services/script_docx_generator.py`) — plus besoin de Node.js du tout.
@@ -37,7 +43,13 @@ pip install -r requirements.txt
 
 cp .env.example .env
 # édite .env et renseigne DEEPL_API_KEY (clé gratuite sur deepl.com/pro-api)
+# -- uniquement si tu comptes utiliser le moteur "deepl". Pour "deeplx" (gratuit,
+# sans clé), rien à mettre dans .env, mais il faut installer son CLI Node.js :
+cd deeplx-cli && npm install && cd ..
 ```
+
+Il te faut Node.js installé et dans le PATH pour le moteur `deeplx` (CLI
+appelé via `node`, voir `app/services/deeplx_translate.py`).
 
 Il te faut aussi `ffmpeg` installé et dans le PATH (nécessaire à Whisper) :
 - Windows : https://ffmpeg.org/download.html

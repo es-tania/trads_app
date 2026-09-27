@@ -19,6 +19,7 @@ from app.config import settings
 from app.jobs.queue import queue
 from app.jobs.tasks import task_scrape, task_translate_scraped
 from app.services.script_docx_generator import generate_docx
+from app.services.translation import ENGINES
 
 router = APIRouter(prefix="/scraping", tags=["scraping"])
 
@@ -38,6 +39,7 @@ class GenerateDocxRequest(BaseModel):
 class TranslateRequest(BaseModel):
     folder: str
     filename: str
+    engine: str | None = None  # "deepl" ou "deeplx" ; défaut = TRANSLATE_ENGINE (.env)
 
 
 @router.post("/scrape", status_code=202)
@@ -75,11 +77,18 @@ def download_scraped_file(folder: str, filename: str):
 
 @router.post("/translate", status_code=202)
 def translate_scraped_script(payload: TranslateRequest):
-    """Met en file d'attente la traduction DeepL du script scrapé."""
+    """Met en file d'attente la traduction du script scrapé (DeepL ou DeepLX local)."""
     json_path = SCRIPTS_DIR / payload.folder / payload.filename
     if not json_path.exists():
         raise HTTPException(status_code=404, detail=f"Fichier introuvable : {json_path}")
 
+    if payload.engine is not None and payload.engine.lower() not in ENGINES:
+        raise HTTPException(
+            status_code=400, detail=f"Moteur inconnu : {payload.engine!r} (attendu : {sorted(ENGINES)})"
+        )
+
     job_id = uuid.uuid4().hex
-    queue.enqueue(task_translate_scraped, job_id, payload.folder, payload.filename, job_timeout="5m")
+    queue.enqueue(
+        task_translate_scraped, job_id, payload.folder, payload.filename, payload.engine, job_timeout="5m"
+    )
     return {"job_id": job_id}

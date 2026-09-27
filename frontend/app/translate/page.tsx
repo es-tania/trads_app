@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { translateDocx } from "@/lib/api";
+import { translateDocx, TranslateEngine } from "@/lib/api";
 import { JobStatusPanel } from "@/components/JobStatusPanel";
+import { EngineSelector } from "@/components/EngineSelector";
 
 export default function TranslatePage() {
   const [file, setFile] = useState<File | null>(null);
+  const [engine, setEngine] = useState<TranslateEngine>("deepl");
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,7 +16,7 @@ export default function TranslatePage() {
     if (!file) return;
     setError(null);
     try {
-      const { job_id } = await translateDocx(file);
+      const { job_id } = await translateDocx(file, engine);
       setJobId(job_id);
     } catch (err) {
       setError((err as Error).message);
@@ -38,6 +40,8 @@ export default function TranslatePage() {
           />
           {file ? file.name : "Cliquer pour choisir un fichier .docx"}
         </label>
+
+        <EngineSelector value={engine} onChange={setEngine} />
 
         <button
           type="submit"

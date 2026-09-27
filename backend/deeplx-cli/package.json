@@ -1,0 +1,8 @@
+{
+  "name": "deeplx-cli",
+  "private": true,
+  "dependencies": {
+    "@pkgr/core": "^0.3.6",
+    "deeplx": "^0.4.0"
+  }
+}

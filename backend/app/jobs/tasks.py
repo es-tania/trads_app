@@ -16,8 +16,8 @@ import yt_dlp
 
 from app.config import settings
 from app.jobs.logging import JobLogger
-from app.services.deepl_translate import translate_text
 from app.services.docx_utils import docx_to_txt, txt_to_docx
+from app.services.translation import translate_text
 from app.services.scraper_script import scrape_script
 from app.services.script_docx_generator import generate_docx
 
@@ -79,7 +79,7 @@ def task_scrape(job_id: str, url: str) -> None:
         logger.set_status("error", message=str(exc))
 
 
-def task_translate_scraped(job_id: str, folder: str, filename: str) -> None:
+def task_translate_scraped(job_id: str, folder: str, filename: str, engine: str | None = None) -> None:
     logger = JobLogger(job_id)
     logger.set_status("running")
     try:
@@ -87,8 +87,8 @@ def task_translate_scraped(job_id: str, folder: str, filename: str) -> None:
         with open(json_path, "r", encoding="utf-8") as f:
             original = json.load(f)
 
-        logger.log("Traduction via l'API DeepL...")
-        translated_script = translate_text(original["script"], source_lang="EN", target_lang="FR")
+        logger.log(f"Traduction via le moteur '{engine or settings.translate_engine}'...")
+        translated_script = translate_text(original["script"], source_lang="EN", target_lang="FR", engine=engine)
 
         fr_filename = filename.replace(".json", "_FR.json")
         fr_path = SCRAPING_DIR / folder / fr_filename
@@ -112,7 +112,7 @@ def task_translate_scraped(job_id: str, folder: str, filename: str) -> None:
 # Traduction docx (module 02)
 # ---------------------------------------------------------------------------
 
-def task_translate_docx(job_id: str, job_dir: str) -> None:
+def task_translate_docx(job_id: str, job_dir: str, engine: str | None = None) -> None:
     logger = JobLogger(job_id)
     logger.set_status("running")
     try:
@@ -126,8 +126,8 @@ def task_translate_docx(job_id: str, job_dir: str) -> None:
         with open(en_txt, "r", encoding="utf-8") as f:
             text = f.read()
 
-        logger.log("Traduction via l'API DeepL...")
-        translated = translate_text(text, source_lang="EN", target_lang="FR")
+        logger.log(f"Traduction via le moteur '{engine or settings.translate_engine}'...")
+        translated = translate_text(text, source_lang="EN", target_lang="FR", engine=engine)
 
         fr_txt = job_path / "FR.txt"
         with open(fr_txt, "w", encoding="utf-8") as f:
