@@ -14,7 +14,7 @@ import { EngineSelector } from "@/components/EngineSelector";
 
 export default function ScrapingPage() {
   const [url, setUrl] = useState("");
-  const [engine, setEngine] = useState<TranslateEngine>("deepl");
+  const [engine, setEngine] = useState<TranslateEngine>("deeplx");
   const [scrapeJobId, setScrapeJobId] = useState<string | null>(null);
   const [translateJobId, setTranslateJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

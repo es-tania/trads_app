@@ -52,7 +52,7 @@ async def generate_subtitles(
     queue.enqueue(
         task_generate_subtitles,
         job_id, str(job_dir), youtube_url, whisper_model, min_duration,
-        job_timeout="30m",
+        job_id=job_id, job_timeout="30m",
     )
 
     return {"job_id": job_id}

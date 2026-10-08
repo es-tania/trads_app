@@ -7,7 +7,7 @@ import { EngineSelector } from "@/components/EngineSelector";
 
 export default function TranslatePage() {
   const [file, setFile] = useState<File | null>(null);
-  const [engine, setEngine] = useState<TranslateEngine>("deepl");
+  const [engine, setEngine] = useState<TranslateEngine>("deeplx");
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { generateSubtitles } from "@/lib/api";
+import { generateSubtitles, subtitlesVideoUrl } from "@/lib/api";
 import { JobStatusPanel } from "@/components/JobStatusPanel";
 
 export default function SubtitlesPage() {
@@ -114,7 +114,21 @@ export default function SubtitlesPage() {
         {error && <p className="text-sm text-danger">{error}</p>}
       </form>
 
-      {jobId && <JobStatusPanel jobId={jobId} />}
+      {jobId && (
+        <JobStatusPanel
+          jobId={jobId}
+          renderDone={() =>
+            source === "youtube" ? (
+              <a
+                href={subtitlesVideoUrl(jobId)}
+                className="rounded-md border border-border px-3 py-1.5 text-sm hover:border-accent/50"
+              >
+                Télécharger la vidéo
+              </a>
+            ) : undefined
+          }
+        />
+      )}
     </div>
   );
 }

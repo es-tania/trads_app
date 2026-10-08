@@ -7,7 +7,11 @@ Suivi d'un job en cours : statut + logs, stockés dans Redis.
 - un canal pub/sub (`job:<id>:channel`) diffuse chaque nouvelle ligne en
   direct aux clients connectés via WebSocket ;
 - un hash Redis (`job:<id>:meta`) garde le statut courant (queued / running /
-  done / error) et le résultat final (chemin du fichier à télécharger).
+  done / error / cancelled) et le résultat final (chemin du fichier à
+  télécharger) ;
+- une clé Redis (`job:<id>:cancel`) sert de demande d'arrêt coopérative : une
+  tâche en cours la vérifie à intervalles réguliers et s'arrête proprement
+  si elle est présente (voir app/jobs/tasks.py).
 
 Tout expire au bout de 24h : pas besoin de nettoyage manuel pour un usage
 personnel avec un volume de jobs modeste.
@@ -26,6 +30,7 @@ class JobLogger:
         self.log_key = f"job:{job_id}:logs"
         self.meta_key = f"job:{job_id}:meta"
         self.channel = f"job:{job_id}:channel"
+        self.cancel_key = f"job:{job_id}:cancel"
 
     def log(self, message: str) -> None:
         line = f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] {message}"
@@ -34,7 +39,7 @@ class JobLogger:
         redis_conn.publish(self.channel, line)
 
     def set_status(self, status: str, **extra) -> None:
-        """status : 'queued' | 'running' | 'done' | 'error'."""
+        """status : 'queued' | 'running' | 'done' | 'error' | 'cancelled'."""
         payload = {"status": status, **extra}
         redis_conn.hset(self.meta_key, mapping={k: json.dumps(v) for k, v in payload.items()})
         redis_conn.expire(self.meta_key, _TTL_SECONDS)
@@ -46,3 +51,9 @@ class JobLogger:
 
     def get_logs(self) -> list[str]:
         return [line.decode() for line in redis_conn.lrange(self.log_key, 0, -1)]
+
+    def request_cancel(self) -> None:
+        redis_conn.set(self.cancel_key, "1", ex=_TTL_SECONDS)
+
+    def is_cancel_requested(self) -> bool:
+        return redis_conn.exists(self.cancel_key) == 1

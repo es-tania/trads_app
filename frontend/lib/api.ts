@@ -6,7 +6,7 @@ export interface JobEnqueued {
 }
 
 // "deepl" : API officielle (clé requise, palier gratuit 500k caractères/mois).
-// "deeplx" : serveur DeepLX auto-hébergé en local (gratuit, sans clé).
+// "deeplx" : CLI Node.js local (gratuit, sans clé) — moteur par défaut.
 export type TranslateEngine = "deepl" | "deeplx";
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
@@ -80,11 +80,15 @@ export function generateSubtitles(params: SubtitlesParams) {
   return postForm<JobEnqueued>("/subtitles/generate", form);
 }
 
+export function subtitlesVideoUrl(jobId: string) {
+  return `${API_BASE}/subtitles/${jobId}/video`;
+}
+
 // --- Jobs (générique) ---
 
 export interface JobState {
   job_id: string;
-  status: "queued" | "running" | "done" | "error";
+  status: "queued" | "running" | "done" | "error" | "cancelled";
   logs: string[];
   result_filename?: string;
   message?: string;
@@ -95,6 +99,11 @@ export async function getJobStatus(jobId: string): Promise<JobState> {
   const res = await fetch(`${API_BASE}/jobs/${jobId}`);
   if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText);
   return res.json();
+}
+
+export async function cancelJob(jobId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}/cancel`, { method: "POST" });
+  if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText);
 }
 
 export function jobResultUrl(jobId: string) {

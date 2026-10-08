@@ -1,12 +1,5 @@
 @echo off
-REM Lance tout le projet en un clic : Redis/FlareSolverr (Docker), l'API,
-REM le worker RQ et le frontend Next.js, chacun dans sa propre fenetre.
-REM
-REM Prerequis (une seule fois) :
-REM   - backend\.venv cree et backend\requirements.txt installe
-REM   - backend\.env rempli (voir backend\.env.example)
-REM   - frontend : npm install
-REM   - (optionnel) backend\deeplx-cli : npm install
+REM Lance tout le projet en un clic.
 
 setlocal
 set ROOT=%~dp0
@@ -26,6 +19,12 @@ start "Frontend (Next.js)" cmd /k "cd /d "%ROOT%frontend" && npm run dev"
 
 echo.
 echo Trois fenetres viennent de s'ouvrir : API, Worker, Frontend.
+echo Ouverture du frontend dans le navigateur...
+
+timeout /t 3 /nobreak >nul
+start "" "http://localhost:3000"
+
+echo.
 echo Ferme-les (ou Ctrl+C dedans) pour tout arreter.
 echo.
 pause

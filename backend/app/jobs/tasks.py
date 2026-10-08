@@ -6,7 +6,6 @@ disponible côté client immédiatement) et journalise sa progression via
 JobLogger, pour que l'API et le frontend puissent suivre l'avancement.
 """
 import json
-import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -17,11 +16,15 @@ import yt_dlp
 from app.config import settings
 from app.jobs.logging import JobLogger
 from app.services.docx_utils import docx_to_txt, txt_to_docx
-from app.services.translation import translate_text
 from app.services.scraper_script import scrape_script
 from app.services.script_docx_generator import generate_docx
+from app.services.translation import translate_text
 
 SCRAPING_DIR = settings.storage_dir / "scripts"
+
+
+class JobCancelled(Exception):
+    """Levée quand un arrêt a été demandé via POST /jobs/{id}/cancel."""
 
 
 def _safe_folder_name(title: str) -> str:
@@ -32,13 +35,22 @@ def _safe_folder_name(title: str) -> str:
 
 
 def _run_streaming(args: list[str], cwd: Path, logger: JobLogger) -> None:
-    """Lance un script legacy et journalise sa sortie ligne par ligne en direct."""
+    """
+    Lance un script legacy et journalise sa sortie ligne par ligne en direct.
+
+    Le flag d'annulation est vérifié à chaque ligne reçue : comme Whisper
+    (1_align.py) imprime régulièrement sa progression, ça donne un point
+    d'interruption fréquent sans avoir à modifier le script legacy lui-même.
+    """
     process = subprocess.Popen(
         [sys.executable, *args], cwd=cwd,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         text=True, bufsize=1,
     )
     for line in process.stdout:
+        if logger.is_cancel_requested():
+            process.terminate()
+            raise JobCancelled()
         logger.log(line.rstrip())
     process.wait()
     if process.returncode != 0:
@@ -51,6 +63,9 @@ def _run_streaming(args: list[str], cwd: Path, logger: JobLogger) -> None:
 
 def task_scrape(job_id: str, url: str) -> None:
     logger = JobLogger(job_id)
+    if logger.is_cancel_requested():
+        logger.set_status("cancelled")
+        return
     logger.set_status("running")
     try:
         logger.log(f"Récupération de {url}...")
@@ -81,6 +96,9 @@ def task_scrape(job_id: str, url: str) -> None:
 
 def task_translate_scraped(job_id: str, folder: str, filename: str, engine: str | None = None) -> None:
     logger = JobLogger(job_id)
+    if logger.is_cancel_requested():
+        logger.set_status("cancelled")
+        return
     logger.set_status("running")
     try:
         json_path = SCRAPING_DIR / folder / filename
@@ -114,6 +132,9 @@ def task_translate_scraped(job_id: str, folder: str, filename: str, engine: str 
 
 def task_translate_docx(job_id: str, job_dir: str, engine: str | None = None) -> None:
     logger = JobLogger(job_id)
+    if logger.is_cancel_requested():
+        logger.set_status("cancelled")
+        return
     logger.set_status("running")
     try:
         job_path = Path(job_dir)
@@ -150,15 +171,28 @@ def task_translate_docx(job_id: str, job_dir: str, engine: str | None = None) ->
 
 def _download_youtube(url: str, job_dir: Path, logger: JobLogger) -> Path:
     logger.log(f"Téléchargement de {url}...")
+
+    def _check_cancel(_progress: dict) -> None:
+        if logger.is_cancel_requested():
+            raise JobCancelled()
+
     output_template = str(job_dir / "video.%(ext)s")
     ydl_opts = {
         "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
         "outtmpl": output_template,
         "merge_output_format": "mp4",
         "quiet": True,
+        "progress_hooks": [_check_cancel],
     }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+    except Exception:
+        # yt-dlp peut ré-emballer l'exception levée dans le hook : on se fie
+        # au flag plutôt qu'au type d'exception pour détecter l'annulation.
+        if logger.is_cancel_requested():
+            raise JobCancelled()
+        raise
 
     video_path = job_dir / "video.mp4"
     if not video_path.exists():
@@ -172,6 +206,9 @@ def task_generate_subtitles(
     whisper_model: str, min_duration: float,
 ) -> None:
     logger = JobLogger(job_id)
+    if logger.is_cancel_requested():
+        logger.set_status("cancelled")
+        return
     logger.set_status("running")
     try:
         job_path = Path(job_dir)
@@ -183,11 +220,17 @@ def task_generate_subtitles(
         elif not video_path.exists():
             raise RuntimeError("Aucune vidéo trouvée pour ce job")
 
+        if logger.is_cancel_requested():
+            raise JobCancelled()
+
         en_txt = job_path / "EN.txt"
         fr_txt = job_path / "FR.txt"
         logger.log("Extraction du texte des .docx...")
         docx_to_txt(job_path / "EN.docx", en_txt)
         docx_to_txt(job_path / "FR.docx", fr_txt)
+
+        if logger.is_cancel_requested():
+            raise JobCancelled()
 
         segments_json = job_path / "video.segments.json"
         logger.log(f"Alignement Whisper (modèle {whisper_model})... cela peut prendre plusieurs minutes")
@@ -196,6 +239,9 @@ def task_generate_subtitles(
             "--model", whisper_model, "--lang", "en", "--output", str(segments_json),
         ], cwd=job_path, logger=logger)
 
+        if logger.is_cancel_requested():
+            raise JobCancelled()
+
         segments_fr_json = job_path / "video.segments.fr.json"
         logger.log("Mapping des segments FR...")
         _run_streaming([
@@ -203,12 +249,18 @@ def task_generate_subtitles(
             "--output", str(segments_fr_json),
         ], cwd=job_path, logger=logger)
 
+        if logger.is_cancel_requested():
+            raise JobCancelled()
+
         srt_path = job_path / "sous_titres.srt"
         logger.log("Génération du .srt...")
         _run_streaming([
             str(scripts_dir / "2_merge_to_srt.py"), str(segments_fr_json), str(fr_txt),
             "--output", str(srt_path),
         ], cwd=job_path, logger=logger)
+
+        if logger.is_cancel_requested():
+            raise JobCancelled()
 
         srt_final_path = job_path / "sous_titres_corrige.srt"
         logger.log("Correction des timings...")
@@ -219,6 +271,9 @@ def task_generate_subtitles(
 
         logger.log("Terminé")
         logger.set_status("done", result_path=str(srt_final_path), result_filename="sous_titres.srt")
+    except JobCancelled:
+        logger.log("Job annulé par l'utilisateur")
+        logger.set_status("cancelled")
     except Exception as exc:
         logger.log(f"Erreur : {exc}")
         logger.set_status("error", message=str(exc))

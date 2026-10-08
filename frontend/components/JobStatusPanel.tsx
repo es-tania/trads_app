@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useJob } from "@/lib/useJob";
-import { jobResultUrl, JobState } from "@/lib/api";
+import { cancelJob, jobResultUrl, JobState } from "@/lib/api";
 import { StatusPill } from "./StatusPill";
 
 interface Props {
@@ -14,20 +14,49 @@ interface Props {
 export function JobStatusPanel({ jobId, renderDone }: Props) {
   const job = useJob(jobId);
   const logRef = useRef<HTMLDivElement>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [job?.logs.length]);
 
+  useEffect(() => {
+    // Le statut a bougé (ex: passé à "cancelled") : on peut réactiver le bouton
+    // si jamais l'utilisateur relance quelque chose plus tard.
+    if (job?.status !== "queued" && job?.status !== "running") setCancelling(false);
+  }, [job?.status]);
+
   if (!job) return null;
+
+  const isActive = job.status === "queued" || job.status === "running";
+
+  async function handleCancel() {
+    setCancelling(true);
+    try {
+      await cancelJob(jobId);
+    } catch {
+      setCancelling(false); // le polling reflètera de toute façon l'état réel
+    }
+  }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <StatusPill status={job.status} />
-        {job.status === "error" && job.message && (
-          <span className="text-sm text-danger">{job.message}</span>
-        )}
+        <div className="flex items-center gap-3">
+          {job.status === "error" && job.message && (
+            <span className="text-sm text-danger">{job.message}</span>
+          )}
+          {isActive && (
+            <button
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="rounded-md border border-danger/40 px-3 py-1 text-xs text-danger hover:bg-danger/10 disabled:opacity-40"
+            >
+              {cancelling ? "Arrêt demandé…" : "Arrêter"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div ref={logRef} className="log-console h-56 overflow-y-auto p-3">

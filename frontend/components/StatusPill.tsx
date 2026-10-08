@@ -3,6 +3,7 @@ const LABELS: Record<string, string> = {
   running: "En cours",
   done: "Terminé",
   error: "Erreur",
+  cancelled: "Annulé",
 };
 
 const STYLES: Record<string, string> = {
@@ -10,6 +11,7 @@ const STYLES: Record<string, string> = {
   running: "bg-accent-soft text-accent border-accent/40 animate-pulse",
   done: "bg-success/10 text-success border-success/40",
   error: "bg-danger/10 text-danger border-danger/40",
+  cancelled: "bg-warn/10 text-warn border-warn/40",
 };
 
 export function StatusPill({ status }: { status: string }) {

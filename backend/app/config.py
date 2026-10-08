@@ -30,9 +30,10 @@ class Settings(BaseSettings):
     deepl_api_key: str = ""
 
     # Moteur de traduction par défaut, utilisé quand une route ne précise
-    # pas explicitement `engine` : "deepl" (API officielle) ou "deeplx"
-    # (CLI Node.js `deeplx` en local, gratuit, sans clé — voir services/deeplx_translate.py)
-    translate_engine: str = "deepl"
+    # pas explicitement `engine` : "deeplx" (CLI Node.js local, gratuit,
+    # sans clé — voir services/deeplx_translate.py) ou "deepl" (API
+    # officielle, payante au-delà du palier gratuit, clé requise).
+    translate_engine: str = "deeplx"
 
     # Commande pour lancer Node.js (utilisé pour le CLI deeplx). Change-la si
     # `node` n'est pas dans ton PATH.
@@ -72,4 +73,3 @@ class Settings(BaseSettings):
 
 settings = Settings()
 settings.storage_dir.mkdir(parents=True, exist_ok=True)
-

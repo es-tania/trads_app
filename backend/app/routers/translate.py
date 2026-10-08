@@ -1,5 +1,5 @@
 """
-Remplace le module 02 : traduire un .docx EN en FR, sans deeplx/Node.js.
+Remplace le module 02 : traduire un .docx EN en FR (DeepL ou DeepLX local).
 Upload direct -> mis en file d'attente -> récupérer le résultat via
 GET /jobs/{job_id}/result une fois le job terminé.
 """
@@ -22,8 +22,8 @@ JOBS_DIR = settings.storage_dir / "translate_jobs"
 async def translate_docx(file: UploadFile, engine: str | None = Form(None)):
     """Upload d'un .docx EN -> met la traduction en file d'attente.
 
-    `engine` : "deepl" (API officielle) ou "deeplx" (serveur local). Si
-    omis, utilise TRANSLATE_ENGINE défini dans .env.
+    `engine` : "deepl" (API officielle) ou "deeplx" (CLI local). Si omis,
+    utilise TRANSLATE_ENGINE défini dans .env.
     """
     if not file.filename.lower().endswith(".docx"):
         raise HTTPException(status_code=400, detail="Seuls les fichiers .docx sont acceptés")
@@ -39,5 +39,5 @@ async def translate_docx(file: UploadFile, engine: str | None = Form(None)):
     with open(en_docx, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    queue.enqueue(task_translate_docx, job_id, str(job_dir), engine, job_timeout="5m")
+    queue.enqueue(task_translate_docx, job_id, str(job_dir), engine, job_id=job_id, job_timeout="5m")
     return {"job_id": job_id}
