@@ -109,3 +109,33 @@ export async function cancelJob(jobId: string): Promise<void> {
 export function jobResultUrl(jobId: string) {
   return `${API_BASE}/jobs/${jobId}/result`;
 }
+
+// --- Historique (éléments stockés sur disque) ---
+
+export type StorageCategory = "scripts" | "translate" | "subtitles";
+
+export interface StorageItem {
+  category: StorageCategory;
+  id: string;
+  title: string;
+  created_at: string;
+  files: string[];
+  size_bytes: number;
+  status: JobState["status"] | null;
+  details: Record<string, unknown>;
+}
+
+export async function listStorageItems(): Promise<StorageItem[]> {
+  const res = await fetch(`${API_BASE}/storage`, { cache: "no-store" });
+  if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText);
+  return res.json();
+}
+
+export function storageDownloadUrl(category: StorageCategory, id: string, file: string) {
+  return `${API_BASE}/storage/${category}/${encodeURIComponent(id)}/download?file=${encodeURIComponent(file)}`;
+}
+
+export async function deleteStorageItem(category: StorageCategory, id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/storage/${category}/${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText);
+}

@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import jobs, ocr, scraping, subtitles, translate
+from app.routers import jobs, ocr, scraping, storage, subtitles, translate
 
 app = FastAPI(title="Trads LADS API", version="0.2.0")
 
@@ -28,6 +28,7 @@ app.include_router(translate.router)
 app.include_router(ocr.router)
 app.include_router(subtitles.router)
 app.include_router(jobs.router)
+app.include_router(storage.router)
 
 
 @app.get("/health")

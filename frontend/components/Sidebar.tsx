@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/scraping", label: "Scraping & traduction" },
   { href: "/translate", label: "Traduire un .docx" },
   { href: "/subtitles", label: "Sous-titres vidéo" },
+  { href: "/history", label: "Historique" },
   { href: "/ocr", label: "OCR image", disabled: true },
 ];
 

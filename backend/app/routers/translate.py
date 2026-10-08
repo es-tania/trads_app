@@ -1,6 +1,6 @@
 """
 Remplace le module 02 : traduire un .docx EN en FR (DeepL ou DeepLX local).
-Upload direct -> mis en file d'attente -> récupérer le résultat via
+Upload direct -> mis en file d'attente ("fast") -> récupérer le résultat via
 GET /jobs/{job_id}/result une fois le job terminé.
 """
 import shutil
@@ -9,8 +9,9 @@ import uuid
 from fastapi import APIRouter, Form, HTTPException, UploadFile
 
 from app.config import settings
-from app.jobs.queue import queue
+from app.jobs.queue import queue_fast
 from app.jobs.tasks import task_translate_docx
+from app.services.job_meta import write_job_meta
 from app.services.translation import ENGINES
 
 router = APIRouter(prefix="/translate", tags=["translate"])
@@ -39,5 +40,7 @@ async def translate_docx(file: UploadFile, engine: str | None = Form(None)):
     with open(en_docx, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    queue.enqueue(task_translate_docx, job_id, str(job_dir), engine, job_id=job_id, job_timeout="5m")
+    write_job_meta(job_dir, title=file.filename, engine=engine or settings.translate_engine)
+
+    queue_fast.enqueue(task_translate_docx, job_id, str(job_dir), engine, job_id=job_id, job_timeout="5m")
     return {"job_id": job_id}

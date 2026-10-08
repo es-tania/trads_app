@@ -6,6 +6,7 @@ disponible côté client immédiatement) et journalise sa progression via
 JobLogger, pour que l'API et le frontend puissent suivre l'avancement.
 """
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime
@@ -42,10 +43,14 @@ def _run_streaming(args: list[str], cwd: Path, logger: JobLogger) -> None:
     (1_align.py) imprime régulièrement sa progression, ça donne un point
     d'interruption fréquent sans avoir à modifier le script legacy lui-même.
     """
+    # Sous Windows, la sortie d'un sous-processus redirigée vers un pipe utilise
+    # cp1252 par défaut : les scripts legacy qui impriment des emojis (✅...)
+    # plantent alors avec UnicodeEncodeError. On force l'UTF-8 des deux côtés.
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
     process = subprocess.Popen(
-        [sys.executable, *args], cwd=cwd,
+        [sys.executable, *args], cwd=cwd, env=env,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, bufsize=1,
+        encoding="utf-8", errors="replace", bufsize=1,
     )
     for line in process.stdout:
         if logger.is_cancel_requested():
