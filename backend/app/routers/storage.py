@@ -1,6 +1,6 @@
 """
 Historique des éléments stockés sur disque (scripts scrapés, traductions
-docx, sous-titres) : lister, télécharger un fichier, supprimer un élément.
+docx, sous-titres, OCR d'images) : lister, télécharger un fichier, supprimer un élément.
 
 Contrairement au statut des jobs (Redis, expire après 24h), ce qui est dans
 storage/ reste tant que tu ne le supprimes pas : cette vue est donc durable.
@@ -22,10 +22,11 @@ CATEGORY_DIRS = {
     "scripts": settings.storage_dir / "scripts",
     "translate": settings.storage_dir / "translate_jobs",
     "subtitles": settings.storage_dir / "subtitles_jobs",
+    "ocr": settings.storage_dir / "ocr_jobs",
 }
 
 # Catégories dont l'identifiant d'élément est un job_id (donc suivi dans Redis).
-_JOB_CATEGORIES = {"translate", "subtitles"}
+_JOB_CATEGORIES = {"translate", "subtitles", "ocr"}
 _ACTIVE_STATUSES = ("queued", "running")
 
 

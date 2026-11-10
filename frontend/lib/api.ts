@@ -58,6 +58,27 @@ export function translateDocx(file: File, engine?: TranslateEngine) {
   return postForm<JobEnqueued>("/translate/docx", form);
 }
 
+// --- OCR d'images (module 01) ---
+
+export interface OcrModels {
+  default: string;
+  models: string[];
+}
+
+export async function getOcrModels(): Promise<OcrModels> {
+  const res = await fetch(`${API_BASE}/ocr/models`, { cache: "no-store" });
+  if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText);
+  return res.json();
+}
+
+/** Les images sont transcrites dans l'ordre du tableau. */
+export function ocrImages(files: File[], model?: string) {
+  const form = new FormData();
+  for (const file of files) form.append("files", file);
+  if (model) form.append("model", model);
+  return postForm<JobEnqueued>("/ocr/images", form);
+}
+
 // --- Sous-titres (module 03) ---
 
 export interface SubtitlesParams {
@@ -116,7 +137,7 @@ export function jobResultUrl(jobId: string) {
 
 // --- Historique (éléments stockés sur disque) ---
 
-export type StorageCategory = "scripts" | "translate" | "subtitles";
+export type StorageCategory = "scripts" | "translate" | "subtitles" | "ocr";
 
 export interface StorageItem {
   category: StorageCategory;

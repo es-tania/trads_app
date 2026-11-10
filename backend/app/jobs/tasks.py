@@ -17,6 +17,7 @@ import yt_dlp
 from app.config import settings
 from app.jobs.logging import JobLogger
 from app.services.docx_utils import docx_to_txt, txt_to_docx
+from app.services.ocr_vision import transcribe_image
 from app.services.scraper_script import scrape_script
 from app.services.script_docx_generator import generate_docx
 from app.services.translation import translate_text
@@ -165,6 +166,48 @@ def task_translate_docx(job_id: str, job_dir: str, engine: str | None = None) ->
 
         logger.log("Terminé")
         logger.set_status("done", result_path=str(fr_docx), result_filename="FR.docx")
+    except Exception as exc:
+        logger.log(f"Erreur : {exc}")
+        logger.set_status("error", message=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# OCR d'images (module 01)
+# ---------------------------------------------------------------------------
+
+def task_ocr_images(job_id: str, job_dir: str, filenames: list[str], model: str | None = None) -> None:
+    logger = JobLogger(job_id)
+    if logger.is_cancel_requested():
+        logger.set_status("cancelled")
+        return
+    logger.set_status("running")
+    try:
+        job_path = Path(job_dir)
+        txt_path = job_path / "script_images.txt"
+        logger.log(f"Transcription de {len(filenames)} image(s) avec le modèle '{model or settings.ocr_model}'...")
+
+        # Écrit au fur et à mesure : en cas d'arrêt ou d'erreur, le texte des
+        # images déjà traitées reste récupérable depuis l'Historique.
+        with open(txt_path, "w", encoding="utf-8") as f:
+            for i, filename in enumerate(filenames, start=1):
+                if logger.is_cancel_requested():
+                    raise JobCancelled()
+                logger.log(f"Image {i}/{len(filenames)} : {filename}")
+                text = transcribe_image(job_path / filename, model)
+                if not text:
+                    logger.log("  Attention : aucun texte détecté")
+                f.write(f"{filename}\n{text}\n---\n")
+                f.flush()
+
+        docx_path = job_path / "script_images.docx"
+        logger.log("Génération du .docx...")
+        txt_to_docx(txt_path, docx_path)
+
+        logger.log("Terminé")
+        logger.set_status("done", result_path=str(docx_path), result_filename="script_images.docx")
+    except JobCancelled:
+        logger.log("Job annulé par l'utilisateur")
+        logger.set_status("cancelled")
     except Exception as exc:
         logger.log(f"Erreur : {exc}")
         logger.set_status("error", message=str(exc))

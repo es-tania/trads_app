@@ -1,74 +1,83 @@
 """
-Remplace le module 01 (transcription d'images via Claude Code interactif).
+Remplace le module 01 (transcription d'images via `ollama launch claude`) :
+upload de plusieurs images -> transcription par un modèle de vision local
+(Ollama) -> un .docx au format script (noms en gras, noms de fichiers et
+séparateurs en italique, via txt_to_docx).
 
-⚠️ STUB — non branché volontairement. À décider ensemble une fois que tu
-auras testé la qualité d'un modèle de vision local (Ollama : Qwen2-VL,
-MiniCPM-V, Llama 3.2 Vision) sur tes propres images, avec repli possible sur
-l'API Claude si la qualité locale n'est pas suffisante.
-
-La route et le format de réponse sont déjà prêts : il suffit de remplacer
-le contenu de `_transcribe_image()` par l'appel réel (Ollama ou API Claude)
-sans toucher au reste (upload, génération du docx final).
+La transcription passe par la file "subtitles" (et non "fast") : comme
+Whisper, elle occupe le GPU, et les deux en même temps satureraient la VRAM.
+Suivre l'avancement via GET /jobs/{job_id} ou WS /jobs/{job_id}/ws, puis
+récupérer le .docx via GET /jobs/{job_id}/result.
 """
+import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Form, HTTPException, UploadFile
 
 from app.config import settings
-from app.services.docx_utils import txt_to_docx
+from app.jobs.queue import queue_subtitles
+from app.jobs.tasks import task_ocr_images
+from app.services.job_meta import write_job_meta
+from app.services.ocr_vision import OllamaError, list_vision_models
 
 router = APIRouter(prefix="/ocr", tags=["ocr"])
 
 JOBS_DIR = settings.storage_dir / "ocr_jobs"
 
+_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 
-def _transcribe_image(image_path: Path) -> str:
+
+@router.get("/models")
+def get_models():
+    """Modèles de vision installés dans Ollama + modèle par défaut (OCR_MODEL)."""
+    try:
+        models = list_vision_models()
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    return {"default": settings.ocr_model, "models": models}
+
+
+@router.post("/images", status_code=202)
+async def transcribe_images(files: list[UploadFile], model: str | None = Form(None)):
+    """Upload d'une ou plusieurs images -> met la transcription en file d'attente.
+
+    Les images sont transcrites dans l'ordre d'envoi (c'est le frontend qui
+    fixe l'ordre). `model` : modèle Ollama à utiliser, OCR_MODEL (.env) si omis.
     """
-    TODO : brancher ici le modèle de vision choisi.
+    if not files:
+        raise HTTPException(status_code=400, detail="Aucune image envoyée")
 
-    Option A (gratuit, local) :
-        appel à Ollama (ex: qwen2-vl, minicpm-v) via son API HTTP locale
-        (http://localhost:11434/api/generate) avec l'image encodée en base64.
+    for upload in files:
+        if Path(upload.filename or "").suffix.lower() not in _IMAGE_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Format non supporté : {upload.filename!r} (attendu : {sorted(_IMAGE_EXTENSIONS)})",
+            )
 
-    Option B (payant, fiable) :
-        appel au SDK Anthropic (`anthropic.Anthropic().messages.create(...)`)
-        avec l'image en pièce jointe, comme filet de sécurité si la qualité
-        locale n'est pas suffisante sur certaines images.
-    """
-    raise HTTPException(
-        status_code=501,
-        detail="OCR non encore branché — voir le TODO dans app/routers/ocr.py",
-    )
-
-
-@router.post("/images")
-async def transcribe_images(files: list[UploadFile]):
-    """Upload d'une ou plusieurs images -> un .docx avec le texte transcrit."""
-    job_dir = JOBS_DIR / uuid.uuid4().hex
+    job_id = uuid.uuid4().hex
+    job_dir = JOBS_DIR / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
 
-    lines: list[str] = []
+    filenames: list[str] = []
     for upload in files:
-        image_path = job_dir / upload.filename
-        with open(image_path, "wb") as f:
-            f.write(await upload.read())
+        # Path(...).name : ignore tout chemin envoyé par le client ; suffixe
+        # en cas de doublon pour ne pas écraser une image déjà reçue.
+        name = Path(upload.filename).name
+        stem, suffix = Path(name).stem, Path(name).suffix
+        n = 2
+        while name in filenames:
+            name = f"{stem}_{n}{suffix}"
+            n += 1
+        with open(job_dir / name, "wb") as f:
+            shutil.copyfileobj(upload.file, f)
+        filenames.append(name)
 
-        text = _transcribe_image(image_path)
-        lines.append(upload.filename)
-        lines.append(text)
-        lines.append("---")
+    title = filenames[0] if len(filenames) == 1 else f"{len(filenames)} images ({filenames[0]}…)"
+    write_job_meta(job_dir, title=title, model=model or settings.ocr_model)
 
-    txt_path = job_dir / "script_images.txt"
-    with open(txt_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines))
-
-    docx_path = job_dir / "script_images.docx"
-    txt_to_docx(txt_path, docx_path)
-
-    return FileResponse(
-        docx_path,
-        filename="script_images.docx",
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    queue_subtitles.enqueue(
+        task_ocr_images, job_id, str(job_dir), filenames, model,
+        job_id=job_id, job_timeout="2h",
     )
+    return {"job_id": job_id}

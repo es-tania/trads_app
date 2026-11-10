@@ -18,8 +18,8 @@ flowchart TD
   `deeplx`/Node.js.
 - **Génération docx** du script scrapé portée en Python pur (plus de
   dépendance Node.js).
-- **OCR image** : à trancher entre modèle de vision local (Ollama) et API
-  Claude en secours, après tests sur des images réelles.
+- **OCR image** : modèle de vision local via Ollama (API HTTP), job sur la file GPU ; API
+  (Claude) possible plus tard en secours si la qualité locale ne suffit pas.
 - **Sous-titres** : `yt-dlp` ajouté pour le téléchargement direct depuis un
   lien YouTube ; la logique Whisper/alignement existante est réutilisée
   telle quelle (pas réécrite) pour limiter le risque de régression.
@@ -36,4 +36,4 @@ flowchart TD
       (jobs asynchrones pour scraping, traduction et sous-titres)
 - [x] Phase 3 — Frontend Next.js + Tailwind (thème sombre "salle de contrôle")
 - [ ] Phase 4 — Cloudflare Tunnel + authentification
-- [ ] Phase 5 — Choix et branchement du modèle de vision (OCR)
+- [x] Phase 5 — Choix et branchement du modèle de vision (OCR) : Ollama local (qwen3.5:4b par défaut)

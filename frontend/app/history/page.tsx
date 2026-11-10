@@ -15,6 +15,7 @@ const CATEGORY_LABELS: Record<StorageCategory, string> = {
   scripts: "Script scrapé",
   translate: "Traduction .docx",
   subtitles: "Sous-titres",
+  ocr: "OCR image",
 };
 
 type Filter = "all" | StorageCategory;
@@ -77,7 +78,7 @@ export default function HistoryPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(["all", "scripts", "translate", "subtitles"] as const).map((f) => (
+        {(["all", "scripts", "translate", "subtitles", "ocr"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}

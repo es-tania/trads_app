@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const LINKS = [
+const LINKS: { href: string; label: string; disabled?: boolean }[] = [
   { href: "/", label: "Accueil" },
   { href: "/scraping", label: "Scraping & traduction" },
   { href: "/translate", label: "Traduire un .docx" },
   { href: "/subtitles", label: "Sous-titres vidéo" },
+  { href: "/ocr", label: "OCR image" },
   { href: "/history", label: "Historique" },
-  { href: "/ocr", label: "OCR image", disabled: true },
 ];
 
 export function Sidebar() {

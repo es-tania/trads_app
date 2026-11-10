@@ -5,8 +5,9 @@ jobs) et les workers (exécution).
 Deux files séparées plutôt qu'une seule "default" :
 - "fast" : scraping + traduction (réseau/CPU, légers, peuvent tourner
   plusieurs en parallèle sans souci) ;
-- "subtitles" : génération de sous-titres (Whisper, utilise le GPU — en
-  faire tourner deux en même temps risquerait de saturer la VRAM).
+- "subtitles" : génération de sous-titres (Whisper) et OCR d'images
+  (modèle de vision Ollama) — tous deux utilisent le GPU, en faire tourner
+  deux en même temps risquerait de saturer la VRAM.
 
 Un seul worker (SimpleWorker) ne traite qu'un job à la fois, quel que soit
 le nombre de files qu'il écoute. Pour du vrai parallélisme (ex: scraper et

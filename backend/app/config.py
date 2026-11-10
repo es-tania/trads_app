@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     # après un `npm install`). Chemin relatif au dossier backend/.
     deeplx_cli_dir: Path = Path("deeplx-cli")
 
+    # Ollama (OCR des images via un modèle de vision local, voir
+    # services/ocr_vision.py). Le modèle doit avoir la capacité "vision"
+    # (vérifiable avec `ollama show <modèle>`).
+    ollama_url: str = "http://localhost:11434"
+    ocr_model: str = "qwen3.5:4b"
+
+    # Durée pendant laquelle Ollama garde le modèle en VRAM après le dernier
+    # appel. Court par défaut pour libérer le GPU (Whisper) rapidement.
+    ollama_keep_alive: str = "2m"
+
     # FlareSolverr (contournement Cloudflare), tourne dans un conteneur Docker
     flaresolverr_url: str = "http://localhost:8191/v1"
 

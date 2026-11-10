@@ -42,7 +42,9 @@ def txt_to_docx(input_txt: Path, output_docx: Path) -> None:
 
         if ":" in line:
             name_part = line.split(":", 1)[0].strip()
-            if len(name_part) < 30 and not any(c in name_part for c in ".,!?()"):
+            # "??" / "???" : interlocuteur inconnu, à mettre en gras comme un nom.
+            is_unknown_speaker = name_part and set(name_part) == {"?"}
+            if len(name_part) < 30 and (is_unknown_speaker or not any(c in name_part for c in ".,!?()")):
                 text_part = line.split(":", 1)[1].lstrip(" ")
                 p = doc.add_paragraph()
                 run = p.add_run(name_part + ": ")
