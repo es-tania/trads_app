@@ -4,10 +4,46 @@ REM Lance tout le projet en un clic.
 setlocal
 set ROOT=%~dp0
 
+echo === Verification de Docker ===
+docker info >nul 2>&1
+if errorlevel 1 (
+  echo.
+  echo ERREUR : Docker ne repond pas. Lance Docker Desktop, attends qu'il soit demarre,
+  echo puis relance ce script.
+  echo.
+  pause
+  exit /b 1
+)
+
 echo === Services Docker (FlareSolverr + Redis) ===
 pushd "%ROOT%backend"
 docker compose up -d flaresolverr redis
+if errorlevel 1 (
+  echo.
+  echo ERREUR : docker compose a echoue ^(voir le message ci-dessus^).
+  popd
+  pause
+  exit /b 1
+)
+
+echo === Attente de Redis ===
+set TRIES=0
+:waitredis
+docker compose exec -T redis redis-cli ping 2>nul | findstr /i "PONG" >nul
+if not errorlevel 1 goto redisok
+set /a TRIES+=1
+if %TRIES% geq 30 (
+  echo.
+  echo ERREUR : Redis ne repond pas apres 30 secondes.
+  popd
+  pause
+  exit /b 1
+)
+timeout /t 1 /nobreak >nul
+goto waitredis
+:redisok
 popd
+echo Redis est pret.
 
 echo === Ouverture des fenetres (API / 3 Workers / Frontend) ===
 

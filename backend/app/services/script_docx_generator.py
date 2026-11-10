@@ -111,10 +111,10 @@ def generate_docx(json_path: Path, output_path: Path) -> Path:
             speaker = trimmed[:colon_idx].strip()
             dialogue = trimmed[colon_idx + 3:].strip()
             if speaker == "Main Character":
-                speaker = "Me"
+                speaker = "Emma"
             if speaker == "Personnage principal":
                 speaker = "Moi"
-            is_main = speaker in ("Me", "Moi")
+            is_main = speaker in ("Emma", "Moi")
             p = doc.add_paragraph()
             _add_run(p, speaker, bold=True, color=COLOR_BLUE if is_main else COLOR_GREEN, size=12)
             _add_run(p, " : ", size=12)

@@ -67,6 +67,24 @@ async def generate_subtitles(
     return {"job_id": job_id}
 
 
+_SRT_FILES = {"fr": "sous_titres_corrige.srt", "en": "sous_titres_en_corrige.srt"}
+
+
+@router.get("/{job_id}/srt/{lang}")
+def download_srt(job_id: str, lang: str):
+    """Télécharge le .srt final d'un job : lang = "fr" (traduit) ou "en" (original)."""
+    filename = _SRT_FILES.get(lang)
+    if filename is None:
+        raise HTTPException(status_code=404, detail=f"Langue inconnue : {lang!r} (attendu : fr ou en)")
+    if job_id in (".", "..") or "\\" in job_id:
+        raise HTTPException(status_code=400, detail="Identifiant invalide")
+
+    path = JOBS_DIR / job_id / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Ce .srt n'existe pas pour ce job (job antérieur à cette fonctionnalité ?)")
+    return FileResponse(path, filename=f"sous_titres_{lang}.srt")
+
+
 @router.get("/{job_id}/video")
 def download_video(job_id: str):
     """

@@ -6,7 +6,8 @@ python subtitle_generator_gui.py
 python 0_docx_to_txt.py files\EN.docx --output files\EN.txt
 python 0_docx_to_txt.py files\FR.docx --output files\FR.txt
 
-python 1_align.py files\video.mp4 files\EN.txt --model medium --lang en
+# python 1_align.py files\video.mp4 files\EN.txt --model medium --lang en
+python 1_align.py files\video.mp4 files\EN.txt --model large-v3 --lang en
 
 python 1_fr_txt_to_segments.py files\video.segments.json files\FR.txt
 

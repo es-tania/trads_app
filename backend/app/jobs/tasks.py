@@ -274,8 +274,29 @@ def task_generate_subtitles(
             "--min-duration", str(min_duration), "--output", str(srt_final_path),
         ], cwd=job_path, logger=logger)
 
+        # .srt anglais : les segments alignés par Whisper portent déjà les
+        # timecodes de EN.txt, on les refusionne simplement avec ce texte.
+        # Non bloquant : un échec ici ne doit pas faire perdre le .srt français.
+        en_srt_final_path = job_path / "sous_titres_en_corrige.srt"
+        try:
+            logger.log("Génération du .srt anglais...")
+            en_srt_path = job_path / "sous_titres_en.srt"
+            _run_streaming([
+                str(scripts_dir / "2_merge_to_srt.py"), str(segments_json), str(en_txt),
+                "--output", str(en_srt_path),
+            ], cwd=job_path, logger=logger)
+            _run_streaming([
+                str(scripts_dir / "4_fix_srt_timings.py"), str(en_srt_path),
+                "--min-duration", str(min_duration), "--output", str(en_srt_final_path),
+            ], cwd=job_path, logger=logger)
+        except RuntimeError as exc:
+            logger.log(f"Attention : .srt anglais non généré ({exc})")
+
         logger.log("Terminé")
-        logger.set_status("done", result_path=str(srt_final_path), result_filename="sous_titres.srt")
+        extra = {"en_srt_filename": "sous_titres_en.srt"} if en_srt_final_path.exists() else {}
+        logger.set_status(
+            "done", result_path=str(srt_final_path), result_filename="sous_titres.srt", **extra,
+        )
     except JobCancelled:
         logger.log("Job annulé par l'utilisateur")
         logger.set_status("cancelled")

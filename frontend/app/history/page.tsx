@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  cancelJob,
   deleteStorageItem,
   listStorageItems,
   storageDownloadUrl,
@@ -105,7 +106,7 @@ export default function HistoryPage() {
           ) : (
             <div className="space-y-3">
               {visible.map((item) => (
-                <ItemCard key={`${item.category}/${item.id}`} item={item} onDeleted={refresh} />
+                <ItemCard key={`${item.category}/${item.id}`} item={item} onChanged={refresh} />
               ))}
             </div>
           )}
@@ -115,17 +116,33 @@ export default function HistoryPage() {
   );
 }
 
-function ItemCard({ item, onDeleted }: { item: StorageItem; onDeleted: () => void }) {
+function ItemCard({ item, onChanged }: { item: StorageItem; onChanged: () => void }) {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isActive = item.status === "queued" || item.status === "running";
+
+  async function handleCancel() {
+    setCancelling(true);
+    setError(null);
+    try {
+      await cancelJob(item.id);
+      onChanged();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   async function handleDelete() {
     setDeleting(true);
     setError(null);
     try {
       await deleteStorageItem(item.category, item.id);
-      onDeleted();
+      onChanged();
     } catch (err) {
       setError((err as Error).message);
       setDeleting(false);
@@ -184,12 +201,23 @@ function ItemCard({ item, onDeleted }: { item: StorageItem; onDeleted: () => voi
             </button>
           </>
         ) : (
-          <button
-            onClick={() => setConfirming(true)}
-            className="rounded-md border border-danger/40 px-3 py-1 text-xs text-danger hover:bg-danger/10"
-          >
-            Supprimer
-          </button>
+          <>
+            {isActive && (
+              <button
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="rounded-md border border-warn/40 px-3 py-1 text-xs text-warn hover:bg-warn/10 disabled:opacity-40"
+              >
+                {cancelling ? "Arrêt demandé…" : "Arrêter"}
+              </button>
+            )}
+            <button
+              onClick={() => setConfirming(true)}
+              className="rounded-md border border-danger/40 px-3 py-1 text-xs text-danger hover:bg-danger/10"
+            >
+              Supprimer
+            </button>
+          </>
         )}
       </div>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { generateSubtitles, subtitlesVideoUrl } from "@/lib/api";
+import { generateSubtitles, subtitlesSrtUrl, subtitlesVideoUrl } from "@/lib/api";
 import { JobStatusPanel } from "@/components/JobStatusPanel";
 
 export default function SubtitlesPage() {
@@ -117,16 +117,26 @@ export default function SubtitlesPage() {
       {jobId && (
         <JobStatusPanel
           jobId={jobId}
-          renderDone={() =>
-            source === "youtube" ? (
-              <a
-                href={subtitlesVideoUrl(jobId)}
-                className="rounded-md border border-border px-3 py-1.5 text-sm hover:border-accent/50"
-              >
-                Télécharger la vidéo
-              </a>
-            ) : undefined
-          }
+          renderDone={(job) => (
+            <>
+              {job.en_srt_filename && (
+                <a
+                  href={subtitlesSrtUrl(jobId, "en")}
+                  className="rounded-md border border-border px-3 py-1.5 text-sm hover:border-accent/50"
+                >
+                  Télécharger le .srt anglais
+                </a>
+              )}
+              {source === "youtube" && (
+                <a
+                  href={subtitlesVideoUrl(jobId)}
+                  className="rounded-md border border-border px-3 py-1.5 text-sm hover:border-accent/50"
+                >
+                  Télécharger la vidéo
+                </a>
+              )}
+            </>
+          )}
         />
       )}
     </div>

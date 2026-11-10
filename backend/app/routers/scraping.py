@@ -3,7 +3,7 @@ Remplace le module 00 (n8n) : scraper une page de script, générer le docx EN,
 traduire, générer le docx FR. Tout dans l'API, sans n8n.
 
 Le scraping (dépend de FlareSolverr, peut être lent sur Cloudflare) et la
-traduction (DeepL ou DeepLX) passent par la file d'attente RQ — suivre
+traduction (DeepL ou DeepLX) passent par la file d'attente "fast" — suivre
 l'avancement via GET /jobs/{job_id} ou WS /jobs/{job_id}/ws. La génération
 du docx reste synchrone : c'est purement local et quasi instantané.
 """
@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.config import settings
-from app.jobs.queue import queue
+from app.jobs.queue import queue_fast
 from app.jobs.tasks import task_scrape, task_translate_scraped
 from app.services.script_docx_generator import generate_docx
 from app.services.translation import ENGINES
@@ -46,7 +46,7 @@ class TranslateRequest(BaseModel):
 def scrape(payload: ScrapeRequest):
     """Met en file d'attente la récupération d'un script (remplace le scraping n8n)."""
     job_id = uuid.uuid4().hex
-    queue.enqueue(task_scrape, job_id, payload.url, job_id=job_id, job_timeout="5m")
+    queue_fast.enqueue(task_scrape, job_id, payload.url, job_id=job_id, job_timeout="5m")
     return {"job_id": job_id}
 
 
@@ -88,7 +88,7 @@ def translate_scraped_script(payload: TranslateRequest):
         )
 
     job_id = uuid.uuid4().hex
-    queue.enqueue(
+    queue_fast.enqueue(
         task_translate_scraped, job_id, payload.folder, payload.filename, payload.engine,
         job_id=job_id, job_timeout="5m",
     )

@@ -29,10 +29,42 @@ suffisant pour un usage personnel, et ça fonctionne identiquement sous
 Windows, macOS et Linux.
 """
 import sys
+import time
 
+from redis.exceptions import ConnectionError as RedisConnectionError
 from rq import SimpleWorker
 
 from app.jobs.queue import QUEUES, redis_conn
+
+
+def wait_for_redis(conn, timeout: float = 60.0, interval: float = 1.0, sleep=time.sleep) -> None:
+    """
+    Attend que Redis réponde avant de créer le worker.
+
+    Au démarrage du projet (start-dev.bat), le conteneur Redis peut mettre
+    quelques secondes à accepter les connexions : sans cette attente, le
+    worker plante immédiatement avec "Error 10061 connecting to localhost:6379".
+    """
+    waited = 0.0
+    announced = False
+    while True:
+        try:
+            conn.ping()
+            if announced:
+                print("Redis est prêt.")
+            return
+        except RedisConnectionError:
+            if waited >= timeout:
+                raise SystemExit(
+                    f"Redis ne répond toujours pas après {timeout:.0f}s. "
+                    "Docker Desktop est-il lancé ? Essaie : docker compose up -d redis"
+                )
+            if not announced:
+                print("En attente de Redis (démarrage du conteneur ?)...")
+                announced = True
+            sleep(interval)
+            waited += interval
+
 
 if __name__ == "__main__":
     requested = sys.argv[1:] or list(QUEUES.keys())
@@ -41,5 +73,6 @@ if __name__ == "__main__":
         raise SystemExit(f"File(s) inconnue(s) : {unknown} (attendu parmi {list(QUEUES.keys())})")
 
     queues = [QUEUES[name] for name in requested]
+    wait_for_redis(redis_conn)
     worker = SimpleWorker(queues, connection=redis_conn)
     worker.work()

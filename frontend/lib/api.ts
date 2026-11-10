@@ -80,6 +80,10 @@ export function generateSubtitles(params: SubtitlesParams) {
   return postForm<JobEnqueued>("/subtitles/generate", form);
 }
 
+export function subtitlesSrtUrl(jobId: string, lang: "fr" | "en") {
+  return `${API_BASE}/subtitles/${jobId}/srt/${lang}`;
+}
+
 export function subtitlesVideoUrl(jobId: string) {
   return `${API_BASE}/subtitles/${jobId}/video`;
 }

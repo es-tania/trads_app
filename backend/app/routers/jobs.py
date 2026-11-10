@@ -9,7 +9,7 @@ import redis.asyncio as aioredis
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from rq.exceptions import NoSuchJobError
-from rq.job import Job
+from rq.job import Job, JobStatus
 
 from app.config import settings
 from app.jobs.logging import JobLogger
@@ -63,13 +63,21 @@ def cancel_job(job_id: str):
     if status.get("status") in _TERMINAL_STATUSES:
         raise HTTPException(status_code=409, detail=f"Job déjà terminé (statut : {status.get('status')})")
 
+    was_queued = False
     try:
-        Job.fetch(job_id, connection=redis_conn).cancel()
+        rq_job = Job.fetch(job_id, connection=redis_conn)
+        was_queued = rq_job.get_status(refresh=True) == JobStatus.QUEUED
+        rq_job.cancel()
     except NoSuchJobError:
         pass  # déjà retiré de la file par RQ, ou déjà en cours d'exécution
 
     logger.request_cancel()
     logger.log("Arrêt demandé par l'utilisateur...")
+
+    if was_queued:
+        # Retiré de la file avant d'avoir démarré : aucune tâche ne s'exécutera
+        # pour passer le statut à "cancelled", on le fait donc ici.
+        logger.set_status("cancelled")
     return {"ok": True}
 
 
